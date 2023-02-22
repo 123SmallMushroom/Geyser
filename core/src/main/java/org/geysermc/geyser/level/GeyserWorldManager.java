@@ -25,19 +25,34 @@
 
 package org.geysermc.geyser.level;
 
+import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.nbt.NbtMap;
 import com.nukkitx.nbt.NbtMapBuilder;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import org.geysermc.erosion.packet.backendbound.BackendboundBlockRequestPacket;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GeyserWorldManager extends WorldManager {
     private final Object2ObjectMap<String, String> gameruleCache = new Object2ObjectOpenHashMap<>();
 
+    private final AtomicInteger counter = new AtomicInteger(0);
+
     @Override
     public int getBlockAt(GeyserSession session, int x, int y, int z) {
-        return session.getChunkCache().getBlockAt(x, y, z);
+        int id = counter.getAndIncrement();
+        session.getGeyser().getErosionChannel().writeAndFlush(
+                new BackendboundBlockRequestPacket(id, session.getPlayerEntity().getUuid(), Vector3i.from(x, y, z)));
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        session.getGeyser().getErosionPacketHandler().getPendingTransactions().put(id, block -> {
+           future.complete(block);
+        });
+        return future.join();
+        //return session.getChunkCache().getBlockAt(x, y, z);
     }
 
     @Override

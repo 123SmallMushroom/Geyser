@@ -33,8 +33,10 @@ import com.github.steveice10.packetlib.tcp.TcpSession;
 import com.nukkitx.network.raknet.RakNetConstants;
 import com.nukkitx.network.util.EventLoops;
 import com.nukkitx.protocol.bedrock.BedrockServer;
+import io.netty.channel.Channel;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.unix.DomainSocketAddress;
 import io.netty.util.NettyRuntime;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.SystemPropertyUtil;
@@ -50,6 +52,8 @@ import org.geysermc.api.Geyser;
 import org.geysermc.common.PlatformType;
 import org.geysermc.cumulus.form.Form;
 import org.geysermc.cumulus.form.util.FormBuilder;
+import org.geysermc.erosion.netty.impl.UnixSocketListener;
+import org.geysermc.erosion.packet.Packets;
 import org.geysermc.floodgate.crypto.AesCipher;
 import org.geysermc.floodgate.crypto.AesKeyProducer;
 import org.geysermc.floodgate.crypto.Base64Topping;
@@ -67,6 +71,7 @@ import org.geysermc.geyser.api.network.RemoteServer;
 import org.geysermc.geyser.command.GeyserCommandManager;
 import org.geysermc.geyser.configuration.GeyserConfiguration;
 import org.geysermc.geyser.entity.EntityDefinitions;
+import org.geysermc.geyser.erosion.GeyserboundPacketHandlerImpl;
 import org.geysermc.geyser.event.GeyserEventBus;
 import org.geysermc.geyser.extension.GeyserExtensionManager;
 import org.geysermc.geyser.level.WorldManager;
@@ -250,7 +255,21 @@ public class GeyserImpl implements GeyserApi {
         }
     }
 
+    private UnixSocketListener erosion;
+    @Getter
+    private Channel erosionChannel;
+    @Getter
+    private GeyserboundPacketHandlerImpl erosionPacketHandler;
+
     private void startInstance() {
+        Packets.initGeyser();
+
+        this.erosion = new UnixSocketListener();
+        GeyserboundPacketHandlerImpl impl = new GeyserboundPacketHandlerImpl();
+        erosion.createClient(impl);
+        this.erosionPacketHandler = impl;
+        this.erosionChannel = impl.getChannel();
+        this.erosionChannel.connect(new DomainSocketAddress("/tmp/geyser.sock"));
         this.scheduledThread = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("Geyser Scheduled Thread"));
 
         GeyserLogger logger = bootstrap.getGeyserLogger();

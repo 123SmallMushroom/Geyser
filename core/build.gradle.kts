@@ -53,6 +53,8 @@ dependencies {
     // Adventure text serialization
     api(libs.bundles.adventure)
 
+    implementation("org.geysermc.erosion", "common", "1.0-SNAPSHOT")
+
     // Test
     testImplementation(libs.junit)
 
