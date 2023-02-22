@@ -31,6 +31,7 @@ import com.nukkitx.nbt.NbtMapBuilder;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.geysermc.erosion.packet.backendbound.BackendboundBlockRequestPacket;
+import org.geysermc.geyser.level.block.BlockStateValues;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
 
@@ -44,11 +45,14 @@ public class GeyserWorldManager extends WorldManager {
 
     @Override
     public int getBlockAt(GeyserSession session, int x, int y, int z) {
+        if (session.getErosionHandler() == null) {
+            return BlockStateValues.JAVA_AIR_ID;
+        }
         int id = counter.getAndIncrement();
-        session.getGeyser().getErosionChannel().writeAndFlush(
-                new BackendboundBlockRequestPacket(id, session.getPlayerEntity().getUuid(), Vector3i.from(x, y, z)));
+        System.out.println("Requesting block with id " + id);
+        session.getErosionHandler().sendPacket(new BackendboundBlockRequestPacket(id, Vector3i.from(x, y, z)));
         CompletableFuture<Integer> future = new CompletableFuture<>();
-        session.getGeyser().getErosionPacketHandler().getPendingTransactions().put(id, block -> {
+        session.getErosionHandler().getPendingTransactions().put(id, block -> {
            future.complete(block);
         });
         return future.join();

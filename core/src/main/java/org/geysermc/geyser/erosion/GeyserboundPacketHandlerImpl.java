@@ -25,29 +25,43 @@
 
 package org.geysermc.geyser.erosion;
 
+import com.nukkitx.protocol.bedrock.data.SoundEvent;
+import com.nukkitx.protocol.bedrock.packet.LevelSoundEventPacket;
 import io.netty.channel.Channel;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
+import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
+import org.geysermc.erosion.packet.backendbound.BackendboundPacket;
 import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockDataPacket;
 import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockIdPacket;
+import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockPlacePacket;
 import org.geysermc.erosion.packet.geyserbound.GeyserboundPacketHandler;
 import org.geysermc.geyser.registry.BlockRegistries;
+import org.geysermc.geyser.session.GeyserSession;
 
 import java.util.function.IntConsumer;
 
 public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
+    private final GeyserSession session;
     @Getter
     private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
-    @Getter
     private Channel channel;
+
+    public GeyserboundPacketHandlerImpl(GeyserSession session) {
+        this.session = session;
+    }
 
     @Override
     public void handleBlockData(GeyserboundBlockDataPacket packet) {
-        IntConsumer consumer = pendingTransactions.remove(packet.getId());
-        if (consumer != null) {
-            consumer.accept(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
+        try {
+            IntConsumer consumer = pendingTransactions.remove(packet.getId());
+            if (consumer != null) {
+                consumer.accept(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
         }
     }
 
@@ -57,6 +71,37 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
         if (consumer != null) {
             consumer.accept(packet.getBlockId());
         }
+    }
+
+    @Override
+    public void handleBlockPlace(GeyserboundBlockPlacePacket packet) {
+        LevelSoundEventPacket placeBlockSoundPacket = new LevelSoundEventPacket();
+        placeBlockSoundPacket.setSound(SoundEvent.PLACE);
+        placeBlockSoundPacket.setPosition(packet.getPos().toFloat());
+        placeBlockSoundPacket.setBabySound(false);
+        placeBlockSoundPacket.setExtraData(session.getBlockMappings().getBedrockBlockId(packet.getBlockId()));
+        placeBlockSoundPacket.setIdentifier(":");
+        session.sendUpstreamPacket(placeBlockSoundPacket);
+        session.ensureInEventLoop(() -> {
+            session.setLastBlockPlacePosition(null);
+            session.setLastBlockPlacedId(null);
+        });
+    }
+
+    @Override
+    public void onConnect() {
+        sendPacket(new BackendboundInitializePacket(session.getPlayerEntity().getUuid()));
+    }
+
+    public void sendPacket(BackendboundPacket packet) {
+        this.channel.writeAndFlush(packet);
+    }
+
+    public void close() {
+        if (this.channel == null) {
+            return;
+        }
+        this.channel.close();
     }
 
     @Override

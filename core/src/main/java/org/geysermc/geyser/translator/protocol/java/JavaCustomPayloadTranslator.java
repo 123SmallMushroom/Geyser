@@ -32,13 +32,16 @@ import com.nukkitx.protocol.bedrock.packet.TransferPacket;
 import com.nukkitx.protocol.bedrock.packet.UnknownPacket;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import org.geysermc.cumulus.Forms;
 import org.geysermc.cumulus.form.Form;
 import org.geysermc.cumulus.form.util.FormType;
+import org.geysermc.erosion.Constants;
+import org.geysermc.erosion.packet.GeyserboundHandshake;
 import org.geysermc.floodgate.pluginmessage.PluginMessageChannels;
 import org.geysermc.geyser.GeyserImpl;
 import org.geysermc.geyser.GeyserLogger;
-import org.geysermc.geyser.api.network.AuthType;
+import org.geysermc.geyser.erosion.GeyserboundPacketHandlerImpl;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.protocol.PacketTranslator;
 import org.geysermc.geyser.translator.protocol.Translator;
@@ -51,12 +54,20 @@ public class JavaCustomPayloadTranslator extends PacketTranslator<ClientboundCus
 
     @Override
     public void translate(GeyserSession session, ClientboundCustomPayloadPacket packet) {
-        // The only plugin messages it has to listen for are Floodgate plugin messages
-        if (session.remoteServer().authType() != AuthType.FLOODGATE) {
+        String channel = packet.getChannel();
+
+        if (channel.equals(Constants.PLUGIN_MESSAGE)) {
+            if (session.getErosionHandler() != null) {
+                session.getErosionHandler().close();
+            }
+
+            GeyserboundHandshake handshake = new GeyserboundHandshake(Unpooled.wrappedBuffer(packet.getData()));
+            GeyserboundPacketHandlerImpl handler = new GeyserboundPacketHandlerImpl(session);
+            session.setErosionHandler(handler);
+            Channel nettyChannel = session.getGeyser().getErosion().createClient(handler);
+            nettyChannel.connect(handshake.getTransportType().getSocketAddress());
             return;
         }
-
-        String channel = packet.getChannel();
 
         if (channel.equals(PluginMessageChannels.FORM)) {
             byte[] data = packet.getData();

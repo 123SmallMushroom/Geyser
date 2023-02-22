@@ -112,6 +112,7 @@ import org.geysermc.geyser.entity.type.Entity;
 import org.geysermc.geyser.entity.type.ItemFrameEntity;
 import org.geysermc.geyser.entity.type.Tickable;
 import org.geysermc.geyser.entity.type.player.SessionPlayerEntity;
+import org.geysermc.geyser.erosion.GeyserboundPacketHandlerImpl;
 import org.geysermc.geyser.inventory.Inventory;
 import org.geysermc.geyser.inventory.PlayerInventory;
 import org.geysermc.geyser.inventory.recipe.GeyserRecipe;
@@ -167,6 +168,10 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
      */
     @Setter
     private JsonNode certChainData;
+
+    @MonotonicNonNull
+    @Setter
+    private GeyserboundPacketHandlerImpl erosionHandler;
 
     @Accessors(fluent = true)
     @Setter
@@ -1073,6 +1078,10 @@ public class GeyserSession implements GeyserConnection, GeyserCommandSource {
 
         if (tickThread != null) {
             tickThread.cancel(false);
+        }
+
+        if (erosionHandler != null) {
+            erosionHandler.close();
         }
 
         closed = true;
