@@ -25,14 +25,12 @@
 
 package org.geysermc.geyser.erosion;
 
-import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.packet.LevelSoundEventPacket;
 import io.netty.channel.Channel;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+import it.unimi.dsi.fastutil.ints.IntArrays;
 import lombok.Getter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
 import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
@@ -49,7 +47,7 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     @Getter
     private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
     @Getter
-    private final Int2ObjectMap<Consumer<Object2IntMap<Vector3i>>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<Consumer<int[]>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
     private Channel channel;
 
     public GeyserboundPacketHandlerImpl(GeyserSession session) {
@@ -88,7 +86,7 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
         } else {
             var batchConsumer = pendingBatchTransactions.remove(packet.getId());
             if (batchConsumer != null) {
-                batchConsumer.accept(Object2IntMaps.emptyMap());
+                batchConsumer.accept(IntArrays.EMPTY_ARRAY);
             }
         }
     }

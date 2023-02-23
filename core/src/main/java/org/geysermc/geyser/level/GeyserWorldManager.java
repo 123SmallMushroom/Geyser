@@ -28,17 +28,16 @@ package org.geysermc.geyser.level;
 import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.nbt.NbtMap;
 import com.nukkitx.nbt.NbtMapBuilder;
-import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.geysermc.erosion.packet.backendbound.BackendboundBatchBlockRequestPacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundBlockRequestPacket;
+import org.geysermc.erosion.util.BlockPositionIterator;
 import org.geysermc.geyser.level.block.BlockStateValues;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -64,15 +63,13 @@ public class GeyserWorldManager extends WorldManager {
     }
 
     @Override
-    public Object2IntMap<Vector3i> getBlocksAt(GeyserSession session, List<Vector3i> blocks) {
+    public int[] getBlocksAt(GeyserSession session, BlockPositionIterator iter) {
         if (session.getErosionHandler() == null) {
-            Object2IntMap<Vector3i> map = new Object2IntArrayMap<>();
-            blocks.forEach(pos -> map.put(pos, 0));
-            return map;
+            return IntArrays.EMPTY_ARRAY;
         }
         int id = counter.getAndIncrement();
-        session.getErosionHandler().sendPacket(new BackendboundBatchBlockRequestPacket(id, blocks));
-        CompletableFuture<Object2IntMap<Vector3i>> future = new CompletableFuture<>();
+        session.getErosionHandler().sendPacket(new BackendboundBatchBlockRequestPacket(id, iter));
+        CompletableFuture<int[]> future = new CompletableFuture<>();
         session.getErosionHandler().getPendingBatchTransactions().put(id, map -> {
             future.complete(map);
         });
