@@ -30,10 +30,13 @@ import com.github.steveice10.mc.protocol.data.game.setting.Difficulty;
 import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.nbt.NbtMap;
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.geysermc.geyser.session.GeyserSession;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.Nonnull;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
@@ -67,6 +70,15 @@ public abstract class WorldManager {
      * @return the block state at the specified location
      */
     public abstract int getBlockAt(GeyserSession session, int x, int y, int z);
+
+    public Object2IntMap<Vector3i> getBlocksAt(GeyserSession session, List<Vector3i> blocks) {
+        Object2IntMap<Vector3i> map = new Object2IntArrayMap<>();
+        blocks.forEach(pos -> {
+            int networkId = getBlockAt(session, pos);
+            map.put(pos, networkId);
+        });
+        return map;
+    }
 
     /**
      * Checks whether or not this world manager requires a separate chunk cache/has access to more block data than the chunk cache.

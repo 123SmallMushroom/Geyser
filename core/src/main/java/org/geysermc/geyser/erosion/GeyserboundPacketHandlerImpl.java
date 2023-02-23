@@ -25,28 +25,31 @@
 
 package org.geysermc.geyser.erosion;
 
+import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.packet.LevelSoundEventPacket;
 import io.netty.channel.Channel;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMaps;
 import lombok.Getter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
 import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundPacket;
-import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockDataPacket;
-import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockIdPacket;
-import org.geysermc.erosion.packet.geyserbound.GeyserboundBlockPlacePacket;
-import org.geysermc.erosion.packet.geyserbound.GeyserboundPacketHandler;
+import org.geysermc.erosion.packet.geyserbound.*;
 import org.geysermc.geyser.registry.BlockRegistries;
 import org.geysermc.geyser.session.GeyserSession;
 
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     private final GeyserSession session;
     @Getter
     private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
+    @Getter
+    private final Int2ObjectMap<Consumer<Object2IntMap<Vector3i>>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
     private Channel channel;
 
     public GeyserboundPacketHandlerImpl(GeyserSession session) {
@@ -54,14 +57,18 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     }
 
     @Override
+    public void handleBatchBlockId(GeyserboundBatchBlockIdPacket packet) {
+        var batchConsumer = pendingBatchTransactions.remove(packet.getId());
+        if (batchConsumer != null) {
+            batchConsumer.accept(packet.getBlocks());
+        }
+    }
+
+    @Override
     public void handleBlockData(GeyserboundBlockDataPacket packet) {
-        try {
-            IntConsumer consumer = pendingTransactions.remove(packet.getId());
-            if (consumer != null) {
-                consumer.accept(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
-            }
-        } catch (Throwable e) {
-            e.printStackTrace();
+        IntConsumer consumer = pendingTransactions.remove(packet.getId());
+        if (consumer != null) {
+            consumer.accept(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
         }
     }
 
@@ -70,6 +77,19 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
         IntConsumer consumer = pendingTransactions.remove(packet.getId());
         if (consumer != null) {
             consumer.accept(packet.getBlockId());
+        }
+    }
+
+    @Override
+    public void handleBlockLookupFail(GeyserboundBlockLookupFailPacket packet) {
+        IntConsumer consumer = pendingTransactions.remove(packet.getId());
+        if (consumer != null) {
+            consumer.accept(0);
+        } else {
+            var batchConsumer = pendingBatchTransactions.remove(packet.getId());
+            if (batchConsumer != null) {
+                batchConsumer.accept(Object2IntMaps.emptyMap());
+            }
         }
     }
 
