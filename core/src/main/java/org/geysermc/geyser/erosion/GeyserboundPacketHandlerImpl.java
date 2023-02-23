@@ -102,10 +102,8 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
         placeBlockSoundPacket.setExtraData(session.getBlockMappings().getBedrockBlockId(packet.getBlockId()));
         placeBlockSoundPacket.setIdentifier(":");
         session.sendUpstreamPacket(placeBlockSoundPacket);
-        session.ensureInEventLoop(() -> {
-            session.setLastBlockPlacePosition(null);
-            session.setLastBlockPlacedId(null);
-        });
+        session.setLastBlockPlacePosition(null);
+        session.setLastBlockPlacedId(null);
     }
 
     @Override
