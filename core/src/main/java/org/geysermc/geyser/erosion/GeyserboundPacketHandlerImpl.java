@@ -25,19 +25,27 @@
 
 package org.geysermc.geyser.erosion;
 
+import com.github.steveice10.mc.protocol.data.game.level.block.value.PistonValueType;
+import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.packet.LevelSoundEventPacket;
 import io.netty.channel.Channel;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrays;
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.Getter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
 import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundPacket;
 import org.geysermc.erosion.packet.geyserbound.*;
+import org.geysermc.geyser.level.block.BlockStateValues;
+import org.geysermc.geyser.level.physics.Direction;
 import org.geysermc.geyser.registry.BlockRegistries;
 import org.geysermc.geyser.session.GeyserSession;
+import org.geysermc.geyser.session.cache.PistonCache;
+import org.geysermc.geyser.translator.level.block.entity.PistonBlockEntity;
 
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -102,6 +110,27 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
         session.sendUpstreamPacket(placeBlockSoundPacket);
         session.setLastBlockPlacePosition(null);
         session.setLastBlockPlacedId(null);
+    }
+
+    @Override
+    public void handlePistonEvent(GeyserboundPistonEventPacket packet) {
+        Direction orientation = BlockStateValues.getPistonOrientation(packet.getBlockId());
+        Vector3i position = packet.getPos();
+        boolean isExtend = packet.isExtend();
+
+        var stream = packet.getAttachedBlocks()
+                .object2IntEntrySet()
+                .stream()
+                .filter(entry -> BlockStateValues.canPistonMoveBlock(entry.getIntValue(), isExtend));
+        Object2IntMap<Vector3i> attachedBlocks = new Object2IntArrayMap<>();
+        stream.forEach(entry -> attachedBlocks.put(entry.getKey(), entry.getIntValue()));
+
+        session.executeInEventLoop(() -> {
+            PistonCache pistonCache = session.getPistonCache();
+            PistonBlockEntity blockEntity = pistonCache.getPistons().computeIfAbsent(position, pos ->
+                    new PistonBlockEntity(session, position, orientation, packet.isSticky(), !isExtend));
+            blockEntity.setAction(isExtend ? PistonValueType.PUSHING : PistonValueType.PULLING, attachedBlocks);
+        });
     }
 
     @Override
