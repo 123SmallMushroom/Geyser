@@ -46,7 +46,6 @@ import org.geysermc.geyser.util.BlockUtils;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.Arrays;
 import java.util.Locale;
 
 public class CollisionManager {
@@ -237,7 +236,6 @@ public class CollisionManager {
         // Used when correction code needs to be run before the main correction
         BlockPositionIterator iter = session.getCollisionManager().playerCollidableBlocksIterator();
         int[] blocks = session.getGeyser().getWorldManager().getBlocksAt(session, iter);
-        System.out.println(Arrays.toString(blocks));
         for (iter.reset(); iter.hasNext(); iter.next()) {
             BlockCollision blockCollision = BlockUtils.getCollision(blocks[iter.getIteration()]);
             if (blockCollision != null) {

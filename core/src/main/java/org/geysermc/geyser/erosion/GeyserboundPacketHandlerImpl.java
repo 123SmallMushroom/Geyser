@@ -37,6 +37,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import lombok.Getter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
+import org.geysermc.erosion.packet.ErosionPacketSender;
 import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundPacket;
 import org.geysermc.erosion.packet.geyserbound.*;
@@ -52,14 +53,15 @@ import java.util.function.IntConsumer;
 
 public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     private final GeyserSession session;
+    private final ErosionPacketSender<BackendboundPacket> packetSender;
     @Getter
     private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
     @Getter
     private final Int2ObjectMap<Consumer<int[]>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
-    private Channel channel;
 
-    public GeyserboundPacketHandlerImpl(GeyserSession session) {
+    public GeyserboundPacketHandlerImpl(GeyserSession session, ErosionPacketSender<BackendboundPacket> packetSender) {
         this.session = session;
+        this.packetSender = packetSender;
     }
 
     @Override
@@ -139,19 +141,16 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     }
 
     public void sendPacket(BackendboundPacket packet) {
-        this.channel.writeAndFlush(packet);
+        this.packetSender.sendPacket(packet);
     }
 
     public void close() {
-        if (this.channel == null) {
-            return;
-        }
-        this.channel.close();
+        this.packetSender.close();
     }
 
     @Override
     public ErosionPacketHandler setChannel(Channel channel) {
-        this.channel = channel;
+        this.packetSender.setChannel(channel);
         return this;
     }
 }

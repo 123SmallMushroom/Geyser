@@ -28,13 +28,11 @@ package org.geysermc.geyser.level;
 import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.nbt.NbtMap;
 import com.nukkitx.nbt.NbtMapBuilder;
-import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.geysermc.erosion.packet.backendbound.BackendboundBatchBlockRequestPacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundBlockRequestPacket;
 import org.geysermc.erosion.util.BlockPositionIterator;
-import org.geysermc.geyser.level.block.BlockStateValues;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
 
@@ -49,30 +47,28 @@ public class GeyserWorldManager extends WorldManager {
     @Override
     public int getBlockAt(GeyserSession session, int x, int y, int z) {
         if (session.getErosionHandler() == null) {
-            return BlockStateValues.JAVA_AIR_ID;
+            return session.getChunkCache().getBlockAt(x, y, z);
         }
         int id = counter.getAndIncrement();
         System.out.println("Requesting block with id " + id);
         session.getErosionHandler().sendPacket(new BackendboundBlockRequestPacket(id, Vector3i.from(x, y, z)));
+        System.out.println(System.currentTimeMillis());
         CompletableFuture<Integer> future = new CompletableFuture<>();
-        session.getErosionHandler().getPendingTransactions().put(id, block -> {
-           future.complete(block);
-        });
-        return future.join();
-        //return session.getChunkCache().getBlockAt(x, y, z);
+        session.getErosionHandler().getPendingTransactions().put(id, future::complete); // Boxes
+        int result = future.join();
+        System.out.println(System.currentTimeMillis() + "\n---------------");
+        return result;
     }
 
     @Override
     public int[] getBlocksAt(GeyserSession session, BlockPositionIterator iter) {
         if (session.getErosionHandler() == null) {
-            return IntArrays.EMPTY_ARRAY;
+            return super.getBlocksAt(session, iter);
         }
         int id = counter.getAndIncrement();
         session.getErosionHandler().sendPacket(new BackendboundBatchBlockRequestPacket(id, iter));
         CompletableFuture<int[]> future = new CompletableFuture<>();
-        session.getErosionHandler().getPendingBatchTransactions().put(id, map -> {
-            future.complete(map);
-        });
+        session.getErosionHandler().getPendingBatchTransactions().put(id, future::complete);
         return future.join();
     }
 
