@@ -74,8 +74,8 @@ public class JavaCustomPayloadTranslator extends PacketTranslator<ClientboundCus
                 if (!useTcp) {
                     Channel nettyChannel = session.getGeyser().getErosion().createClient(handler);
                     nettyChannel.connect(handshake.getTransportType().getSocketAddress());
-                } else {
-                    handler.onConnect();
+//                } else {
+//                    handler.onConnect();
                 }
                 session.ensureInEventLoop(() -> session.getChunkCache().clear());
             } else {

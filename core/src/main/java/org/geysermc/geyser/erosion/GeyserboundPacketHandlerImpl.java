@@ -51,13 +51,15 @@ import org.geysermc.geyser.translator.level.block.entity.PistonBlockEntity;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
-public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
+public final class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     private final GeyserSession session;
     private final ErosionPacketSender<BackendboundPacket> packetSender;
     @Getter
     private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
     @Getter
     private final Int2ObjectMap<Consumer<int[]>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
+
+    private int idCounter;
 
     public GeyserboundPacketHandlerImpl(GeyserSession session, ErosionPacketSender<BackendboundPacket> packetSender) {
         this.session = session;
@@ -137,6 +139,7 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
 
     @Override
     public void onConnect() {
+        // Currently only ran in Unix domain mode.
         sendPacket(new BackendboundInitializePacket(session.getPlayerEntity().getUuid()));
     }
 
@@ -152,5 +155,9 @@ public class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     public ErosionPacketHandler setChannel(Channel channel) {
         this.packetSender.setChannel(channel);
         return this;
+    }
+
+    public int getAndIncrementId() {
+        return idCounter++;
     }
 }

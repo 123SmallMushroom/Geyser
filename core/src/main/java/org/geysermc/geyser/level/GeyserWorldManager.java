@@ -37,24 +37,22 @@ import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class GeyserWorldManager extends WorldManager {
     private final Object2ObjectMap<String, String> gameruleCache = new Object2ObjectOpenHashMap<>();
 
-    private final AtomicInteger counter = new AtomicInteger(0);
-
     @Override
     public int getBlockAt(GeyserSession session, int x, int y, int z) {
-        if (session.getErosionHandler() == null) {
+        var erosionHandler = session.getErosionHandler();
+        if (erosionHandler == null) {
             return session.getChunkCache().getBlockAt(x, y, z);
         }
-        int id = counter.getAndIncrement();
+        int id = erosionHandler.getAndIncrementId();
         System.out.println("Requesting block with id " + id);
-        session.getErosionHandler().sendPacket(new BackendboundBlockRequestPacket(id, Vector3i.from(x, y, z)));
+        erosionHandler.sendPacket(new BackendboundBlockRequestPacket(id, Vector3i.from(x, y, z)));
         System.out.println(System.currentTimeMillis());
         CompletableFuture<Integer> future = new CompletableFuture<>();
-        session.getErosionHandler().getPendingTransactions().put(id, future::complete); // Boxes
+        erosionHandler.getPendingTransactions().put(id, future::complete); // Boxes
         int result = future.join();
         System.out.println(System.currentTimeMillis() + "\n---------------");
         return result;
@@ -62,13 +60,14 @@ public class GeyserWorldManager extends WorldManager {
 
     @Override
     public int[] getBlocksAt(GeyserSession session, BlockPositionIterator iter) {
-        if (session.getErosionHandler() == null) {
+        var erosionHandler = session.getErosionHandler();
+        if (erosionHandler == null) {
             return super.getBlocksAt(session, iter);
         }
-        int id = counter.getAndIncrement();
-        session.getErosionHandler().sendPacket(new BackendboundBatchBlockRequestPacket(id, iter));
+        int id = erosionHandler.getAndIncrementId();
+        erosionHandler.sendPacket(new BackendboundBatchBlockRequestPacket(id, iter));
         CompletableFuture<int[]> future = new CompletableFuture<>();
-        session.getErosionHandler().getPendingBatchTransactions().put(id, future::complete);
+        erosionHandler.getPendingBatchTransactions().put(id, future::complete);
         return future.join();
     }
 
