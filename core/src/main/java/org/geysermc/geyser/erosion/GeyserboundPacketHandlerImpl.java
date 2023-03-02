@@ -26,16 +26,15 @@
 package org.geysermc.geyser.erosion;
 
 import com.github.steveice10.mc.protocol.data.game.level.block.value.PistonValueType;
+import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.protocol.bedrock.data.SoundEvent;
 import com.nukkitx.protocol.bedrock.packet.LevelSoundEventPacket;
 import io.netty.channel.Channel;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import lombok.Getter;
+import lombok.Setter;
 import org.geysermc.erosion.packet.ErosionPacketHandler;
 import org.geysermc.erosion.packet.ErosionPacketSender;
 import org.geysermc.erosion.packet.backendbound.BackendboundInitializePacket;
@@ -48,18 +47,17 @@ import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.session.cache.PistonCache;
 import org.geysermc.geyser.translator.level.block.entity.PistonBlockEntity;
 
-import java.util.function.Consumer;
-import java.util.function.IntConsumer;
+import java.util.concurrent.CompletableFuture;
 
 public final class GeyserboundPacketHandlerImpl implements GeyserboundPacketHandler {
     private final GeyserSession session;
     private final ErosionPacketSender<BackendboundPacket> packetSender;
-    @Getter
-    private final Int2ObjectMap<IntConsumer> pendingTransactions = new Int2ObjectOpenHashMap<>();
-    @Getter
-    private final Int2ObjectMap<Consumer<int[]>> pendingBatchTransactions = new Int2ObjectOpenHashMap<>();
-
-    private int idCounter;
+    @Setter
+    private CompletableFuture<Integer> pendingLookup = null;
+    @Setter
+    private CompletableFuture<int[]> pendingBatchLookup = null;
+    @Setter
+    private CompletableFuture<CompoundTag> pickBlockLookup = null;
 
     public GeyserboundPacketHandlerImpl(GeyserSession session, ErosionPacketSender<BackendboundPacket> packetSender) {
         this.session = session;
@@ -68,38 +66,37 @@ public final class GeyserboundPacketHandlerImpl implements GeyserboundPacketHand
 
     @Override
     public void handleBatchBlockId(GeyserboundBatchBlockIdPacket packet) {
-        var batchConsumer = pendingBatchTransactions.remove(packet.getId());
-        if (batchConsumer != null) {
-            batchConsumer.accept(packet.getBlocks());
+        if (this.pendingBatchLookup != null) {
+            this.pendingBatchLookup.complete(packet.getBlocks());
+        } else {
+            session.getGeyser().getLogger().warning("Batch block ID packet received with no future to complete.");
         }
     }
 
     @Override
     public void handleBlockData(GeyserboundBlockDataPacket packet) {
-        IntConsumer consumer = pendingTransactions.remove(packet.getId());
-        if (consumer != null) {
-            consumer.accept(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
+        if (this.pendingLookup != null) {
+            this.pendingLookup.complete(BlockRegistries.JAVA_IDENTIFIERS.getOrDefault(packet.getBlockData(), 0));
+        } else {
+            session.getGeyser().getLogger().warning("Block data packet received with no future to complete.");
         }
     }
 
     @Override
     public void handleBlockId(GeyserboundBlockIdPacket packet) {
-        IntConsumer consumer = pendingTransactions.remove(packet.getId());
-        if (consumer != null) {
-            consumer.accept(packet.getBlockId());
+        if (this.pendingLookup != null) {
+            this.pendingLookup.complete(packet.getBlockId());
+        } else {
+            session.getGeyser().getLogger().warning("Block ID packet received with no future to complete.");
         }
     }
 
     @Override
     public void handleBlockLookupFail(GeyserboundBlockLookupFailPacket packet) {
-        IntConsumer consumer = pendingTransactions.remove(packet.getId());
-        if (consumer != null) {
-            consumer.accept(0);
-        } else {
-            var batchConsumer = pendingBatchTransactions.remove(packet.getId());
-            if (batchConsumer != null) {
-                batchConsumer.accept(IntArrays.EMPTY_ARRAY);
-            }
+        if (this.pendingLookup != null) {
+            this.pendingLookup.complete(0);
+        } else if (this.pendingBatchLookup != null) {
+            this.pendingBatchLookup.complete(IntArrays.EMPTY_ARRAY);
         }
     }
 
@@ -114,6 +111,13 @@ public final class GeyserboundPacketHandlerImpl implements GeyserboundPacketHand
         session.sendUpstreamPacket(placeBlockSoundPacket);
         session.setLastBlockPlacePosition(null);
         session.setLastBlockPlacedId(null);
+    }
+
+    @Override
+    public void handlePickBlock(GeyserboundPickBlockPacket packet) {
+        if (this.pickBlockLookup != null) {
+            this.pickBlockLookup.complete(packet.getTag());
+        }
     }
 
     @Override
@@ -155,9 +159,5 @@ public final class GeyserboundPacketHandlerImpl implements GeyserboundPacketHand
     public ErosionPacketHandler setChannel(Channel channel) {
         this.packetSender.setChannel(channel);
         return this;
-    }
-
-    public int getAndIncrementId() {
-        return idCounter++;
     }
 }

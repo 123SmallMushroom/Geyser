@@ -25,6 +25,7 @@
 
 package org.geysermc.geyser.level;
 
+import com.github.steveice10.opennbt.tag.builtin.CompoundTag;
 import com.nukkitx.math.vector.Vector3i;
 import com.nukkitx.nbt.NbtMap;
 import com.nukkitx.nbt.NbtMapBuilder;
@@ -32,10 +33,13 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.geysermc.erosion.packet.backendbound.BackendboundBatchBlockRequestPacket;
 import org.geysermc.erosion.packet.backendbound.BackendboundBlockRequestPacket;
+import org.geysermc.erosion.packet.backendbound.BackendboundPickBlockPacket;
 import org.geysermc.erosion.util.BlockPositionIterator;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.inventory.LecternInventoryTranslator;
+import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.CompletableFuture;
 
 public class GeyserWorldManager extends WorldManager {
@@ -47,12 +51,10 @@ public class GeyserWorldManager extends WorldManager {
         if (erosionHandler == null) {
             return session.getChunkCache().getBlockAt(x, y, z);
         }
-        int id = erosionHandler.getAndIncrementId();
-        System.out.println("Requesting block with id " + id);
-        erosionHandler.sendPacket(new BackendboundBlockRequestPacket(id, Vector3i.from(x, y, z)));
         System.out.println(System.currentTimeMillis());
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        erosionHandler.getPendingTransactions().put(id, future::complete); // Boxes
+        CompletableFuture<Integer> future = new CompletableFuture<>(); // Boxes
+        erosionHandler.setPendingLookup(future);
+        erosionHandler.sendPacket(new BackendboundBlockRequestPacket(Vector3i.from(x, y, z)));
         int result = future.join();
         System.out.println(System.currentTimeMillis() + "\n---------------");
         return result;
@@ -64,10 +66,9 @@ public class GeyserWorldManager extends WorldManager {
         if (erosionHandler == null) {
             return super.getBlocksAt(session, iter);
         }
-        int id = erosionHandler.getAndIncrementId();
-        erosionHandler.sendPacket(new BackendboundBatchBlockRequestPacket(id, iter));
         CompletableFuture<int[]> future = new CompletableFuture<>();
-        erosionHandler.getPendingBatchTransactions().put(id, future::complete);
+        erosionHandler.setPendingBatchLookup(future);
+        erosionHandler.sendPacket(new BackendboundBatchBlockRequestPacket(iter));
         return future.join();
     }
 
@@ -129,5 +130,18 @@ public class GeyserWorldManager extends WorldManager {
     @Override
     public boolean hasPermission(GeyserSession session, String permission) {
         return false;
+    }
+
+    @Nonnull
+    @Override
+    public CompletableFuture<@Nullable CompoundTag> getPickItemNbt(GeyserSession session, int x, int y, int z, boolean addNbtData) {
+        var erosionHandler = session.getErosionHandler();
+        if (erosionHandler == null) {
+            return super.getPickItemNbt(session, x, y, z, addNbtData);
+        }
+        CompletableFuture<CompoundTag> future = new CompletableFuture<>();
+        erosionHandler.setPickBlockLookup(future);
+        erosionHandler.sendPacket(new BackendboundPickBlockPacket(Vector3i.from(x, y, z)));
+        return future;
     }
 }
