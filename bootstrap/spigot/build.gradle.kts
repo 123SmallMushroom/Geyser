@@ -1,5 +1,6 @@
 dependencies {
     api(projects.core)
+    api("org.geysermc.erosion", "bukkit-common", "1.0-SNAPSHOT")
 
     implementation(libs.adapters.spigot)
 
