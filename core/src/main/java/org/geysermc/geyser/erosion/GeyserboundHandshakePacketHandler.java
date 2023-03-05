@@ -48,8 +48,7 @@ public final class GeyserboundHandshakePacketHandler extends AbstractGeyserbound
                 session.disconnect("Erosion configurations using Unix socket handling are not supported on this hardware!");
                 return;
             }
-            Channel nettyChannel = session.getGeyser().getErosionUnixListener().createClient(handler);
-            nettyChannel.connect(packet.getTransportType().getSocketAddress());
+            session.getGeyser().getErosionUnixListener().createClient(handler, packet.getTransportType().getSocketAddress());
         }
         session.ensureInEventLoop(() -> session.getChunkCache().clear());
     }
