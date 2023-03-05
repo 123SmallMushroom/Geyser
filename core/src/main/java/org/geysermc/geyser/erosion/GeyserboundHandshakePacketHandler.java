@@ -44,7 +44,11 @@ public final class GeyserboundHandshakePacketHandler extends AbstractGeyserbound
         GeyserboundPacketHandlerImpl handler = new GeyserboundPacketHandlerImpl(session, useTcp ? new GeyserErosionPacketSender(session) : new NettyPacketSender<>());
         session.setErosionHandler(handler);
         if (!useTcp) {
-            Channel nettyChannel = session.getGeyser().getErosion().createClient(handler);
+            if (session.getGeyser().getErosionUnixListener() == null) {
+                session.disconnect("Erosion configurations using Unix socket handling are not supported on this hardware!");
+                return;
+            }
+            Channel nettyChannel = session.getGeyser().getErosionUnixListener().createClient(handler);
             nettyChannel.connect(packet.getTransportType().getSocketAddress());
         }
         session.ensureInEventLoop(() -> session.getChunkCache().clear());
