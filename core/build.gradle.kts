@@ -53,7 +53,9 @@ dependencies {
     // Adventure text serialization
     api(libs.bundles.adventure)
 
-    implementation("org.geysermc.erosion", "common", "1.0-SNAPSHOT")
+    implementation(libs.erosion.common) {
+        isTransitive = false
+    }
 
     // Test
     testImplementation(libs.junit)

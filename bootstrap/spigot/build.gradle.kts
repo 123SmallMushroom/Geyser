@@ -1,6 +1,8 @@
 dependencies {
     api(projects.core)
-    api("org.geysermc.erosion", "bukkit-common", "1.0-SNAPSHOT")
+    api(libs.erosion.bukkit.common) {
+        isTransitive = false
+    }
 
     implementation(libs.adapters.spigot)
 

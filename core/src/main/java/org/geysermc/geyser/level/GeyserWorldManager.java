@@ -51,13 +51,10 @@ public class GeyserWorldManager extends WorldManager {
         if (erosionHandler == null) {
             return session.getChunkCache().getBlockAt(x, y, z);
         }
-        System.out.println(System.currentTimeMillis());
         CompletableFuture<Integer> future = new CompletableFuture<>(); // Boxes
         erosionHandler.setPendingLookup(future);
         erosionHandler.sendPacket(new BackendboundBlockRequestPacket(Vector3i.from(x, y, z)));
-        int result = future.join();
-        System.out.println(System.currentTimeMillis() + "\n---------------");
-        return result;
+        return future.join();
     }
 
     @Override
