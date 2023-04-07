@@ -36,35 +36,35 @@ jobs:
         if: success()
         with:
           name: Geyser Standalone
-          path: bootstrap/standalone/build/libs/Geyser-Standalone.jar
+          path: bootstrap/standalone/build/libs/
           if-no-files-found: error
       - name: Archive artifacts (Geyser Spigot)
         uses: actions/upload-artifact@v3
         if: success()
         with:
           name: Geyser Spigot
-          path: bootstrap/spigot/build/libs/Geyser-Spigot.jar
+          path: bootstrap/spigot/build/libs/
           if-no-files-found: error
       - name: Archive artifacts (Geyser BungeeCord)
         uses: actions/upload-artifact@v3
         if: success()
         with:
           name: Geyser BungeeCord
-          path: bootstrap/bungeecord/build/libs/Geyser-BungeeCord.jar
+          path: bootstrap/bungeecord/build/libs/
           if-no-files-found: error
       - name: Archive artifacts (Geyser Sponge)
         uses: actions/upload-artifact@v3
         if: success()
         with:
           name: Geyser Sponge
-          path: bootstrap/sponge/build/libs/Geyser-Sponge.jar
+          path: bootstrap/sponge/build/libs/
           if-no-files-found: error
       - name: Archive artifacts (Geyser Velocity)
         uses: actions/upload-artifact@v3
         if: success()
         with:
           name: Geyser Velocity
-          path: bootstrap/velocity/build/libs/Geyser-Velocity.jar
+          path: bootstrap/velocity/build/libs/
           if-no-files-found: error
 
       - name: Publish to Maven Repository
